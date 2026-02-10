@@ -1,113 +1,103 @@
+import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
-import javax.swing.*;
-import javax.swing.plaf.basic.BasicProgressBarUI;
 
 public class loadingScreen {
+    int borderWidth = 1280;
+    int borderHeight = 832;
     
-    int borderWidth = 380;
-    int borderHeight = 800;
+    Color customViolet = new Color(46, 45, 77);
+    Color customGhostWhite = new Color(248, 244, 249);
 
-    Color customBlack = new Color(0, 0, 0);
-    Color customGray = new Color(200, 200, 200); 
-    Color customOrange = new Color(255, 146, 0); 
-    Color customWhite = new Color(255, 255, 255);
+    JFrame frame = new JFrame("loading..");
+    JPanel filledLoadingBar; // Moved to class level so startLoading can see it
+    int maxWidth = 632;      // The full width of the empty bar
 
-    JFrame frame = new JFrame("Loading...");
-    JProgressBar progressBar = new JProgressBar(0, 100);
-    JLabel tipLabel = new JLabel();
-    JLabel waterMark = new JLabel();
-
-    loadingScreen() {
+    public loadingScreen(){
         frame.setSize(borderWidth, borderHeight);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.getContentPane().setBackground(customBlack);
-        
-        frame.setLayout(new GridBagLayout());
-        GridBagConstraints gbc = new GridBagConstraints();
-        gbc.gridx = 0;
-        gbc.fill = GridBagConstraints.HORIZONTAL;
-        gbc.insets = new Insets(10, 40, 10, 40); 
+        frame.getContentPane().setBackground(customGhostWhite);
+        frame.setLayout(null);
 
-        // 1. Title Label
-        JLabel titleLabel = new JLabel("CALCULATOR");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 48));
-        titleLabel.setForeground(customWhite);
-        titleLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        gbc.gridy = 0;
-        frame.add(titleLabel, gbc);
+        // Fern Bank Logo
+        JLabel fern = new JLabel("FERN");
+        fern.setBounds(429, 242, 422, 124);
+        fern.setFont(new Font("Inter", Font.BOLD, 128)); 
+        fern.setForeground(customViolet);
+        fern.setHorizontalAlignment(SwingConstants.CENTER);
+        fern.setVerticalAlignment(SwingConstants.TOP);
+        frame.add(fern); 
 
-        // 2. Styled Oblong Progress Bar
-        progressBar.setPreferredSize(new Dimension(300, 20)); // Adjusted height for sleek look
-        progressBar.setStringPainted(false);
-        progressBar.setOpaque(false); // Important for rounded corners to show background
-        progressBar.setBorderPainted(false);
-        
-        progressBar.setUI(new BasicProgressBarUI() {
-            @Override
-            protected void paintDeterminate(Graphics g, JComponent c) {
-                Graphics2D g2d = (Graphics2D) g;
-                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        JLabel bank = new JLabel("Bank");
+        bank.setBounds(522, 366, 236, 100);
+        bank.setFont(new Font("Inter", Font.BOLD, 96)); 
+        bank.setForeground(customGhostWhite);
+        bank.setHorizontalAlignment(SwingConstants.CENTER);
+        frame.add(bank); 
 
-                int width = progressBar.getWidth();
-                int height = progressBar.getHeight();
-                int arc = height; // Full rounding for "oblong" pill shape
+        JPanel logoBG = new JPanel();
+        logoBG.setBounds(476, 366, 328, 100);
+        logoBG.setBackground(customViolet);
+        frame.add(logoBG);
 
-                // Paint the track (Background)
-                g2d.setColor(customGray);
-                g2d.fill(new RoundRectangle2D.Float(0, 0, width, height, arc, arc));
+        // PROGRESS BAR LOGIC
+        filledLoadingBar = createRoundedPanel(324, 656, 0, 10, 18, null, 0);
+        filledLoadingBar.setBackground(customViolet);
+        frame.add(filledLoadingBar);
 
-                // Paint the progress (Foreground)
-                double percent = progressBar.getPercentComplete();
-                if (percent > 0) {
-                    g2d.setColor(customOrange);
-                    // Standard progress width
-                    int progressWidth = (int) (width * percent);
-                    g2d.fill(new RoundRectangle2D.Float(0, 0, progressWidth, height, arc, arc));
-                }
-            }
-
-            @Override
-            protected void paintIndeterminate(Graphics g, JComponent c) {
-                // Fallback for indeterminate mode if needed
-                super.paintIndeterminate(g, c);
-            }
-        });
-
-        gbc.gridy = 1;
-        frame.add(progressBar, gbc);
-
-        // 3. Tip Label
-        tipLabel.setText("<html><center>Tips: You can solve basic arithmetic problem in calculator, I bet you didn't know that.</center></html>");
-        tipLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        tipLabel.setForeground(customWhite);
-        gbc.gridy = 2;
-        frame.add(tipLabel, gbc);
-
-        // 4. Watermark Label
-        waterMark.setText("<html><br><br><br><br><br><br><center>Developed by Cedrick Tijay Crispino - 2026</center></html>");
-        waterMark.setFont(new Font("SansSerif", Font.ITALIC, 10));
-        waterMark.setForeground(customGray);
-        gbc.gridy = 3;
-        frame.add(waterMark, gbc);
+        JPanel loadingBarBG = createRoundedPanel(324, 656, 632, 10, 18, Color.GRAY, 1);
+        loadingBarBG.setBackground(new Color(230, 230, 230));
+        frame.add(loadingBarBG);
 
         frame.setVisible(true);
-        startLoading();
+        startLoading(); 
     }
 
     private void startLoading() {
-        Timer timer = new Timer(5, e -> {
-            int val = progressBar.getValue();
-            if (val < 100) {
-                progressBar.setValue(val + 1);
+        // Timer runs every 20 milliseconds
+        Timer timer = new Timer(20, e -> {
+            int currentWidth = filledLoadingBar.getWidth();
+            
+            if (currentWidth < maxWidth) {
+                // Increase width by 16 pixels each tick
+                filledLoadingBar.setSize(currentWidth + 16, filledLoadingBar.getHeight());
             } else {
                 ((Timer)e.getSource()).stop();
-                frame.dispose(); 
-                new Calculator(); 
+                
+                // Transition to next screen
+                //JOptionPane.showMessageDialog(frame, "Loading Complete!");
+                frame.dispose();
+                //new errorCatcher().paymentDeclined(); // Example: Open your other class
+                new errorCatcher();
             }
         });
         timer.start();
-    } 
+    }
+    private JPanel createRoundedPanel(int x, int y, int w, int h, int radius, Color strokeColor, int strokeWidth) {
+        JPanel panel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(getBackground());
+                g2.fill(new RoundRectangle2D.Float(0, 0, getWidth() - 1, getHeight() - 1, radius, radius));
+                if (strokeColor != null && strokeWidth > 0) {
+                    g2.setStroke(new BasicStroke(strokeWidth));
+                    g2.setColor(strokeColor);
+                    g2.draw(new RoundRectangle2D.Float(strokeWidth/2f, strokeWidth/2f, getWidth()-strokeWidth-1, getHeight()-strokeWidth-1, radius, radius));
+                }
+                g2.dispose();
+            }
+        };
+        panel.setBounds(x, y, w, h);
+        panel.setOpaque(false);
+        return panel;
+    }
+
+/*     public static void main(String[] args) {
+        SwingUtilities.invokeLater(() -> new loadingScreen());
+    }
+        */
 }
