@@ -69,8 +69,9 @@ public class loadingScreen {
                 // Transition to next screen
                 //JOptionPane.showMessageDialog(frame, "Loading Complete!");
                 frame.dispose();
-                //new errorCatcher().paymentDeclined(); // Example: Open your other class
-                new errorCatcher();
+                new homePage();
+                //new homePage();
+                //new errorCatcher();
             }
         });
         timer.start();
