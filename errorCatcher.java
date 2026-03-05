@@ -54,7 +54,8 @@ public class errorCatcher {
         
         returnButton.addActionListener(e -> {
             System.out.println("Returning to home...");
-            frame.dispose(); 
+            new homePage();
+            frame.dispose();
         });
         frame.add(returnButton);
 
@@ -68,7 +69,13 @@ public class errorCatcher {
         frame.setVisible(true);
     }
 
-    void paymentDeclined() {
+    public void paymentDeclined() {
+        // 1. Clear the default 404 text from the constructor
+        frame.getContentPane().removeAll();
+        
+        // 2. Re-add the background design elements
+        addDesignElements();
+
         JLabel paymentDeclined = new JLabel("Payment Declined");
         paymentDeclined.setBounds(363, 311, 553, 58);
         paymentDeclined.setFont(new Font("Inter", Font.BOLD, 48));
@@ -84,6 +91,7 @@ public class errorCatcher {
         paymentDeclinedBody.setFont(new Font("Inter", Font.PLAIN, 20));
         paymentDeclinedBody.setForeground(customViolet);
         paymentDeclinedBody.setHorizontalAlignment(SwingConstants.CENTER);
+        frame.add(paymentDeclinedBody); // <-- Added missing frame.add()
 
          //Button and Background
         JButton retryButton = createRoundedButton("Retry Payment", 32);
@@ -91,18 +99,21 @@ public class errorCatcher {
         retryButton.setBackground(customViolet);
         retryButton.setForeground(customGhostWhite);
         retryButton.setFont(new Font("Inter", Font.PLAIN, 24));
+        
+        // <-- UPDATED: Make sure Retry goes back to the home page!
+        retryButton.addActionListener(e -> {
+            frame.dispose(); 
+            new homePage(); 
+        });
         frame.add(retryButton);
 
         JPanel errorPanel = createRoundedPanel(301, 250, 678, 332, 30, null, 0);
         errorPanel.setBackground(customGhostWhite);
         frame.add(errorPanel);
 
-        retryButton.addActionListener(e -> {
-            frame.dispose(); 
-        });
-
-
-        frame.setVisible(true);
+        // 3. Refresh the frame to show the clean Payment Declined UI
+        frame.revalidate();
+        frame.repaint();
     }
 
     private void addDesignElements() {
