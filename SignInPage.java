@@ -4,6 +4,9 @@ import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
+import java.io.*;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SignInPage {
     // Dimensions and Colors
@@ -15,16 +18,34 @@ public class SignInPage {
     Color customRed = new Color(236, 103, 103);
     Color transparentViolet = new Color(46, 45, 77, 120);
 
-    // Account Data Persistence
-    String registeredUser = "admin";
-    String registeredPass = "admin";
+    // === UPDATED: Account now holds password + balance + cardNumber ===
+    private static class Account {
+        String password;
+        double balance;
+        String cardNumber;
+
+        Account(String password, double balance, String cardNumber) {
+            this.password = password;
+            this.balance = balance;
+            this.cardNumber = cardNumber;
+        }
+    }
+
+    HashMap<String, Account> userDatabase = new HashMap<>();
+    public static String currentUser = "";
+    public static double currentUserBalance = 0.0;      // Shared with homePage
+    public static String currentUserCardNumber = "";    // NEW: Shared with homePage
+
+    private final String FILE_PATH = "credentials.txt";
     
-    // Temp storage for Sign-up flow
-    String tempName, tempEmail, tempPass;
+    // Temp storage for Sign-up and Reset flow
+    String tempName, tempEmail, tempPass, userToReset;
 
     JFrame frame = new JFrame("Account Set-up");
 
     public SignInPage() {
+        loadCredentials(); // Load all saved accounts on startup
+
         frame.setSize(borderWidth, borderHeight);
         frame.setLocationRelativeTo(null);
         frame.setResizable(false);
@@ -36,7 +57,49 @@ public class SignInPage {
         frame.setVisible(true);
     }
 
-    // --- VIEW: SIGN IN ---
+    // --- DATABASE I/O METHODS (UPDATED for balance + cardNumber) ---
+
+    private void loadCredentials() {
+        File file = new File(FILE_PATH);
+        if (file.exists()) {
+            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String[] parts = line.split(",");
+                    if (parts.length == 4) {
+                        String user = parts[0].trim();
+                        String pass = parts[1].trim();
+                        double bal = Double.parseDouble(parts[2].trim());
+                        String card = parts[3].trim();
+                        userDatabase.put(user, new Account(pass, bal, card));
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println("Error loading credentials: " + e.getMessage());
+            }
+        } else {
+            // Default account + create file immediately
+            userDatabase.put("admin", new Account("admin", 18500.67, "1234567890124617"));
+            saveAllCredentials();
+        }
+    }
+
+    private void saveAllCredentials() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(FILE_PATH))) {
+            for (Map.Entry<String, Account> entry : userDatabase.entrySet()) {
+                Account acc = entry.getValue();
+                writer.write(entry.getKey() + "," + 
+                            acc.password + "," + 
+                            String.format("%.2f", acc.balance) + "," + 
+                            acc.cardNumber);
+                writer.newLine();
+            }
+        } catch (IOException e) {
+            System.out.println("Error saving credentials: " + e.getMessage());
+        }
+    }
+
+    // --- VIEW: SIGN IN (UPDATED - now sets balance AND cardNumber for homePage) ---
     public void showSignIn() {
         prepareView();
         addLeftPanel("Machine Problem 3", "<html>You can sign in to access with your<br>existing account.</html>");
@@ -46,7 +109,6 @@ public class SignInPage {
         JTextField userField = createPlaceholderField("Username or email", 843, 295, 349, 63, 64, false);
         JPasswordField passField = (JPasswordField) createPlaceholderField("Password", 843, 370, 349, 63, 64, true);
 
-        // Error Label (Initially Hidden)
         JLabel errorLabel = new JLabel("Wrong username or password!");
         errorLabel.setBounds(843, 439, 250, 15);
         errorLabel.setForeground(customRed);
@@ -62,14 +124,18 @@ public class SignInPage {
         JButton signInBtn = createStyledButton("Sign in", 504);
         setupValidation(new JTextField[]{userField, passField}, signInBtn);
 
-        // Logic for Login
         signInBtn.addActionListener(e -> {
-            String inputUser = userField.getText();
+            String inputUser = userField.getText().trim();
             String inputPass = new String(passField.getPassword());
 
-            if (inputUser.equals(registeredUser) && inputPass.equals(registeredPass)) {
-                new loadingScreen();
-                //JOptionPane.showMessageDialog(frame, "Login Successful! Welcome " + inputUser);
+            Account acc = userDatabase.get(inputUser);
+            if (acc != null && acc.password.equals(inputPass)) {
+                currentUser = inputUser;
+                currentUserBalance = acc.balance;
+                currentUserCardNumber = acc.cardNumber;   // ← NEW: card saved for homePage
+                new loadingScreen(); 
+                frame.dispose();
+
             } else {
                 errorLabel.setVisible(true);
                 userField.putClientProperty("error", true);
@@ -87,7 +153,7 @@ public class SignInPage {
         finishView();
     }
 
-    // --- VIEW: SIGN UP ---
+    // --- VIEW: SIGN UP (unchanged) ---
     public void showSignUp() {
         prepareView();
         addLeftPanel("Welcome to Fern", "a desktop banking app. Somehow.");
@@ -105,7 +171,12 @@ public class SignInPage {
             tempName = nameField.getText();
             tempEmail = emailField.getText();
             tempPass = new String(passField.getPassword());
-            bankDetails();
+            
+            if(userDatabase.containsKey(tempEmail)) {
+                JOptionPane.showMessageDialog(frame, "Account already exists!");
+            } else {
+                bankDetails();
+            }
         });
 
         addBottomLinks("Already have an account?", "Log in", new MouseAdapter() {
@@ -117,7 +188,7 @@ public class SignInPage {
         finishView();
     }
     
-    // --- VIEW: BANK DETAILS ---
+    // --- VIEW: BANK DETAILS (UPDATED - now saves cardNum too) ---
     public void bankDetails() {
         prepareView();
         addLeftPanel("Let’s see", "<html>How many millions you have in your<br>bank account.</html>");
@@ -126,12 +197,9 @@ public class SignInPage {
 
         JTextField cardNum = createPlaceholderField("Card Number", 843, 289, 349, 63, 64, false);
         setNumericLimit(cardNum, 16);
-
         JTextField cardName = createPlaceholderField("Card Holder Name", 843, 364, 349, 63, 64, false);
-
         JTextField CVV = createPlaceholderField("CVV", 843, 439, 131, 63, 64, false);
         setNumericLimit(CVV, 3);
-
         JTextField expDate = createPlaceholderField("MM/YY", 986, 439, 206, 63, 64, false);
         setNumericLimit(expDate, 4);
 
@@ -139,10 +207,19 @@ public class SignInPage {
         setupValidation(new JTextField[]{cardNum, cardName, CVV, expDate}, proceedBtn);
 
         proceedBtn.addActionListener(e -> {
-            // Commit registration
-            registeredUser = tempEmail;
-            registeredPass = tempPass;
-            JOptionPane.showMessageDialog(frame, "Account created successfully for " + tempName);
+            String enteredCard = cardNum.getText().trim();
+            // Random initial balance (1.00 - 100000.00)
+            double randomBalance = 1.00 + (Math.random() * 99999.00);
+            randomBalance = Math.round(randomBalance * 100.0) / 100.0;
+
+            userDatabase.put(tempEmail, new Account(tempPass, randomBalance, enteredCard));
+            saveAllCredentials();
+            
+            JOptionPane.showMessageDialog(frame, 
+                "Account created successfully for " + tempName + 
+                "\n\nInitial Balance: ₱" + String.format("%,.2f", randomBalance) +
+                "\nCard Number: " + enteredCard);
+            
             showSignIn();
         });
 
@@ -152,11 +229,10 @@ public class SignInPage {
 
         frame.add(header); frame.add(cardNum); frame.add(cardName); 
         frame.add(CVV); frame.add(expDate); frame.add(proceedBtn);
-
         finishView();
     }
 
-    // --- VIEW: FORGOT PASSWORD ---
+    // --- VIEW: FORGOT PASSWORD (unchanged) ---
     public void showForgotPW() {
         prepareView();
         addLeftPanel("How could you?", "forgot that quickly..");
@@ -168,7 +244,14 @@ public class SignInPage {
         JButton resetBtn = createStyledButton("Reset Password", 450);
         setupValidation(new JTextField[]{userField, emailField}, resetBtn);
 
-        resetBtn.addActionListener(e -> changePW());
+        resetBtn.addActionListener(e -> {
+            if (userDatabase.containsKey(userField.getText())) {
+                userToReset = userField.getText();
+                changePW();
+            } else {
+                JOptionPane.showMessageDialog(frame, "User not found!");
+            }
+        });
 
         addBottomLinks("Already have an account?", "Log in", new MouseAdapter() {
             public void mouseClicked(MouseEvent e) { showSignIn(); }
@@ -190,7 +273,11 @@ public class SignInPage {
         setupMatchValidation(newPass, reType, changeBTN);
         
         changeBTN.addActionListener(e -> {
-            registeredPass = new String(newPass.getPassword());
+            Account currentAcc = userDatabase.get(userToReset);
+            userDatabase.put(userToReset, new Account(new String(newPass.getPassword()), 
+                                                      currentAcc.balance, 
+                                                      currentAcc.cardNumber));
+            saveAllCredentials();
             JOptionPane.showMessageDialog(frame, "Password Changed Successfully!");
             showSignIn();
         });
@@ -203,7 +290,7 @@ public class SignInPage {
         finishView();
     }
 
-    // --- LOGIC: VALIDATION & INPUT ---
+    // --- LOGIC: VALIDATION & INPUT (unchanged) ---
     private void setupValidation(JTextField[] fields, JButton btn) {
         DocumentListener dl = new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { check(); }
@@ -252,7 +339,6 @@ public class SignInPage {
         });
     }
 
-    // --- COMPONENT FACTORY ---
     private JTextField createPlaceholderField(String hint, int x, int y, int w, int h, int radius, boolean isPassword) {
         JTextField field = isPassword ? new JPasswordField(hint) : new JTextField(hint);
         if (isPassword) ((JPasswordField)field).setEchoChar((char)0); 
@@ -272,7 +358,7 @@ public class SignInPage {
                     field.setForeground(Color.BLACK);
                     field.setFont(new Font("Inter", Font.PLAIN, 20));
                     if (isPassword) ((JPasswordField)field).setEchoChar('\u2022');
-                    field.putClientProperty("error", false); // Reset error state on type
+                    field.putClientProperty("error", false);
                 }
             }
             @Override
@@ -291,10 +377,8 @@ public class SignInPage {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                
                 Boolean hasError = (Boolean) field.getClientProperty("error");
                 g2.setColor(hasError != null && hasError ? customRed : transparentViolet);
-                
                 g2.draw(new RoundRectangle2D.Float(0, 0, getWidth()-1, getHeight()-1, radius, radius));
                 g2.dispose();
             }
